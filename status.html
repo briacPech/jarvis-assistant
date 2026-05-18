@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jarvis — Statut</title>
+  <style>
+    :root { --bg:#0f1419; --card:#1a2332; --ok:#31d0aa; --bad:#f87171; --txt:#e7ecf3; --muted:#8b9cb3; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding: 20px; }
+    h1 { font-size: 1.4rem; margin: 0 0 8px; }
+    .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .card { background: var(--card); border-radius: 12px; padding: 14px 16px; }
+    .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .pill.ok { background: rgba(49,208,170,.2); color: var(--ok); }
+    .pill.bad { background: rgba(248,113,113,.2); color: var(--bad); }
+    .row { font-size: 14px; margin: 6px 0; word-break: break-word; }
+    a { color: var(--ok); }
+    button { margin-top: 16px; background: var(--ok); color: #0f1419; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Jarvis — tableau de bord</h1>
+  <p class="sub" id="ts">Chargement…</p>
+  <div id="grid" class="grid"></div>
+  <button type="button" id="refresh">Actualiser</button>
+  <p class="sub"><a href="/">Retour au chat</a></p>
+  <script>
+    const API = location.origin;
+    function pill(ok){ return `<span class="pill ${ok?'ok':'bad'}">${ok?'OK':'KO'}</span>`; }
+    function card(title, ok, rows){
+      return `<div class="card"><h2>${title} ${pill(ok)}</h2>${rows.map(r=>`<div class="row">${r}</div>`).join('')}</div>`;
+    }
+    async function load(){
+      const r = await fetch(`${API}/status`);
+      const d = await r.json();
+      document.getElementById('ts').textContent = d.timestamp || '';
+      document.getElementById('grid').innerHTML = [
+        card('API', d.api?.ok, [`Port ${d.api?.port}`, d.api?.lan ? `LAN ${d.api.lan}` : '']),
+        card('Ollama', d.ollama?.ok, [`${d.ollama?.host}`, `Modèle ${d.ollama?.model}`]),
+        card('STT micro', d.stt?.ok, [`Moteur ${d.stt?.engine}`, `Config ${d.stt?.configured}`, d.stt?.whisper_available ? `Whisper ${d.stt?.whisper_model}` : 'Whisper non installé']),
+        card('Web', d.web?.ok !== false && d.web?.enabled, [`Cache ${d.web_cache_ttl_sec}s`, d.web?.error ? `Erreur: ${d.web.error}` : 'DuckDuckGo']),
+        card('TTS', d.tts?.enabled, [`Moteur ${d.tts?.engine}`]),
+        card('Tidal', d.tidal?.enabled, [d.tidal?.enabled ? 'Activé' : 'Désactivé (.env)']),
+        card('Rappels', d.reminders?.enabled, [`En attente: ${d.reminders?.pending}`]),
+        card('Cloud', d.cloud?.enabled && d.cloud?.quota_ok !== false, [d.cloud?.model || 'Groq off']),
+      ].join('');
+    }
+    document.getElementById('refresh').onclick = load;
+    load().catch(e => { document.getElementById('ts').textContent = 'Erreur: '+e; });
+  </script>
+</body>
+</html>
